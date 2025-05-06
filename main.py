@@ -65,7 +65,6 @@ def today_ipl_schedule():
 
     match_cards = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")
 
-    # FULL NAMES for upcoming/today matches
     ipl_teams_full = [
         'Mumbai Indians', 'Chennai Super Kings', 'Royal Challengers Bangalore', 'Gujarat Titans',
         'Rajasthan Royals', 'Lucknow Super Giants', 'Delhi Capitals', 'Punjab Kings',
@@ -74,7 +73,7 @@ def today_ipl_schedule():
     today_matches = []
 
     for card in match_cards:
-        blocks = card.find_all("div", class_="cb-mtch-lst cb-col cb-col-100 cb-tms-itm")
+        blocks = card.find_all("div", class_="cb-mtch-lst cb-col cb-col-100")  # 👈 Yeh line fix hai
         for block in blocks:
             match_info = block.text.strip()
             found_teams = [team for team in ipl_teams_full if team in match_info]
