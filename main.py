@@ -14,35 +14,28 @@ def today_ipl_schedule():
     try:
         url = "https://www.cricbuzz.com/"
         headers = {
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"
         }
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.content, "html.parser")
 
-        match_cards = soup.find_all("div", class_="cb-col cb-col-100 cb-mtch-crd cb-pos-rel")
+        match_cards = soup.find_all("li", class_="cb-view-all-ga cb-match-card cb-bg-white")
 
         today_matches = []
         for card in match_cards:
-            title_tag = card.find("div", class_="cb-mtch-crd-hdr cb-font-10")
-            title = title_tag.get_text(strip=True) if title_tag else ""
+            title_tag = card.find("a")
+            match_title = title_tag.get("title") if title_tag else "No title"
 
-            series_tag = card.find("div", class_="cb-col-90 cb-color-light-sec cb-ovr-flo")
-            series = series_tag.get_text(strip=True) if series_tag else ""
+            match_link = title_tag["href"] if title_tag and title_tag.has_attr("href") else ""
 
-            teams_tag = card.find("a")
-            teams = teams_tag.get("title") if teams_tag else ""
+            time_div = card.find("div", class_="cb-ovr-flo cb-mtch-crd-time cb-font-12 cb-text-preview ng-binding ng-scope")
+            match_time = time_div.get_text(strip=True) if time_div else ""
 
-            time_tag = card.find("div", string=lambda text: text and ("Today" in text or ":" in text))
-            time_text = time_tag.get_text(strip=True) if time_tag else ""
-
-            full_text = f"{title} {series} {teams}".lower()
-
-            if ("ipl" in full_text or "indian premier league" in full_text) and time_text:
+            if "Today" in match_time:
                 today_matches.append({
-                    "match": teams,
-                    "title": title,
-                    "series": series,
-                    "time": time_text
+                    "match": match_title,
+                    "time": match_time,
+                    "link": f"https://www.cricbuzz.com{match_link}"
                 })
 
         if today_matches:
