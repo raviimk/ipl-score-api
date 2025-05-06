@@ -23,9 +23,15 @@ def today_matches():
     soup = BeautifulSoup(res.text, "lxml")
 
     matches = []
-    blocks = soup.find_all("div", class_="cb-col cb-col-100 cb-tms-itm")
+    match_blocks = soup.find_all("div", class_="cb-col cb-col-100 cb-tms-itm")
 
-    for block in blocks:
+    if not match_blocks:
+        return jsonify({
+            "message": "Structure not found on Cricbuzz page",
+            "status": "error"
+        })
+
+    for block in match_blocks:
         match_text = block.text.strip()
         found_teams = [team for team in IPL_TEAMS_FULL if team in match_text]
         if len(found_teams) >= 2:
