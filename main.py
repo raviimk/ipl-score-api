@@ -61,9 +61,9 @@ def today_ipl_schedule():
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "lxml")
 
-    # 👇 Ye debugging output hai jo terminal me dikhayega HTML
     print("🔍 DEBUG OUTPUT START")
-    print(soup.prettify()) # Pehle 5000 characters print hoga
+    print("Page Title:", soup.title.text)
+    print("Full HTML Preview:", soup.prettify()[:3000])  # limit for better viewing
     print("🔍 DEBUG OUTPUT END")
 
     return jsonify({"message": "Debug mode on. Check terminal output."})
