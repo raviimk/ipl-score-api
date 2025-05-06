@@ -14,7 +14,7 @@ def today_ipl_schedule():
     try:
         url = "https://www.cricbuzz.com/"
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"
+            "User-Agent": "Mozilla/5.0"
         }
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.content, "html.parser")
@@ -23,23 +23,21 @@ def today_ipl_schedule():
 
         today_matches = []
         for card in match_cards:
-            # Match title
             title_tag = card.find("div", class_="cb-mtch-crd-hdr cb-font-10")
-            title = title_tag.get_text(strip=True) if title_tag else "No title"
+            title = title_tag.get_text(strip=True) if title_tag else ""
 
-            # Match series name
             series_tag = card.find("div", class_="cb-col-90 cb-color-light-sec cb-ovr-flo")
             series = series_tag.get_text(strip=True) if series_tag else ""
 
-            # Match teams
             teams_tag = card.find("a")
             teams = teams_tag.get("title") if teams_tag else ""
 
-            # Match time
             time_tag = card.find("div", string=lambda text: text and ("Today" in text or ":" in text))
             time_text = time_tag.get_text(strip=True) if time_tag else ""
 
-            if teams and time_text:
+            full_text = f"{title} {series} {teams}".lower()
+
+            if ("ipl" in full_text or "indian premier league" in full_text) and time_text:
                 today_matches.append({
                     "match": teams,
                     "title": title,
