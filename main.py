@@ -17,13 +17,13 @@ def index():
 
 @app.route('/players/<player_name>', methods=['GET'])
 def get_player(player_name):
-    # ... [your original /players code stays unchanged] ...
-    return jsonify(player_data)
+    # Placeholder - fill with your logic
+    return jsonify({"player": player_name})
 
 @app.route('/schedule')
 def schedule():
-    # ... [your original /schedule code stays unchanged] ...
-    return jsonify(matches)
+    # Placeholder - fill with your logic
+    return jsonify({"schedule": "Coming soon"})
 
 @app.route('/live')
 def live_matches():
@@ -31,12 +31,10 @@ def live_matches():
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "lxml")
 
-    match_blocks = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")
-
-    # SHORT NAMES for live matches
     ipl_teams_short = ['CSK', 'MI', 'RCB', 'GT', 'RR', 'LSG', 'DC', 'PBKS', 'KKR', 'SRH']
     live_ipl_matches = []
 
+    match_blocks = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")
     for card in match_blocks:
         matches = card.find_all("div", class_="cb-mtch-lst cb-col cb-col-100 cb-lv-scrs-col")
         for match in matches:
@@ -51,7 +49,7 @@ def live_matches():
             "status": "no_live",
             "today_ipl_schedule": ["Use /today to see today’s matches"]
         })
-    
+
     return jsonify({
         "status": "live",
         "matches": live_ipl_matches
@@ -63,9 +61,9 @@ def today_ipl_schedule():
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "lxml")
 
-    # Yeh naya debug code hai jo HTML content terminal pe print karega
+    # 👇 Ye debugging output hai jo terminal me dikhayega HTML
     print("🔍 DEBUG OUTPUT START")
-    print(soup.prettify()[:5000])  # Sirf pehle 5000 characters print hoga
+    print(soup.prettify()[:5000])  # Pehle 5000 characters print hoga
     print("🔍 DEBUG OUTPUT END")
 
     return jsonify({"message": "Debug mode on. Check terminal output."})
