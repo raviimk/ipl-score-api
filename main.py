@@ -18,7 +18,6 @@ def index():
 @app.route('/players/<player_name>', methods=['GET'])
 def get_player(player_name):
     # ... [your original /players code stays unchanged] ...
-    # Paste the existing get_player() function here
     return jsonify(player_data)
 
 @app.route('/schedule')
@@ -34,14 +33,15 @@ def live_matches():
 
     match_blocks = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")
 
-    ipl_teams = ['CSK', 'MI', 'RCB', 'GT', 'RR', 'LSG', 'DC', 'PBKS', 'KKR', 'SRH']
+    # SHORT NAMES for live matches
+    ipl_teams_short = ['CSK', 'MI', 'RCB', 'GT', 'RR', 'LSG', 'DC', 'PBKS', 'KKR', 'SRH']
     live_ipl_matches = []
 
     for card in match_blocks:
         matches = card.find_all("div", class_="cb-mtch-lst cb-col cb-col-100 cb-lv-scrs-col")
         for match in matches:
             match_info = match.text.strip()
-            found_teams = [team for team in ipl_teams if team in match_info]
+            found_teams = [team for team in ipl_teams_short if team in match_info]
             if len(found_teams) >= 2:
                 live_ipl_matches.append(match_info)
 
@@ -65,14 +65,19 @@ def today_ipl_schedule():
 
     match_cards = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")
 
-    ipl_teams = ['CSK', 'MI', 'RCB', 'GT', 'RR', 'LSG', 'DC', 'PBKS', 'KKR', 'SRH']
+    # FULL NAMES for upcoming/today matches
+    ipl_teams_full = [
+        'Mumbai Indians', 'Chennai Super Kings', 'Royal Challengers Bangalore', 'Gujarat Titans',
+        'Rajasthan Royals', 'Lucknow Super Giants', 'Delhi Capitals', 'Punjab Kings',
+        'Kolkata Knight Riders', 'Sunrisers Hyderabad'
+    ]
     today_matches = []
 
     for card in match_cards:
         blocks = card.find_all("div", class_="cb-mtch-lst cb-col cb-col-100 cb-tms-itm")
         for block in blocks:
             match_info = block.text.strip()
-            found_teams = [team for team in ipl_teams if team in match_info]
+            found_teams = [team for team in ipl_teams_full if team in match_info]
             if len(found_teams) >= 2:
                 today_matches.append(match_info)
 
