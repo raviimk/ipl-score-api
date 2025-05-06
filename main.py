@@ -1,83 +1,170 @@
 from flask import Flask, jsonify
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+import lxml
+import requests
+from bs4 import BeautifulSoup
+import re
 import time
+from flask import Response
+import json
+from googlesearch import search #pip install googlesearch-python
+
 
 app = Flask(__name__)
 
-# Setup Selenium WebDriver
-def create_driver():
-    options = Options()
-    options.add_argument('--headless')  # Headless mode for server
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+@app.route('/')
+def index():
+    return "Hey there! This is a Cricket API. You can use the following endpoints: /players/<player_name>, /schedule, /live."
 
-# ------------------------------
-# LIVE MATCH SCORE
-# ------------------------------
-@app.route('/live-score', methods=['GET'])
-def live_score():
-    url = "https://www.cricbuzz.com/live-cricket-scorecard/115336/mi-vs-gt-56th-match-indian-premier-league-2025"
-    driver = create_driver()
-    driver.get(url)
-
-    time.sleep(5)
-
+@app.route('/players/<player_name>', methods=['GET'])
+def get_player(player_name):
+    query = f"{player_name} cricbuzz"
+    profile_link = None
     try:
-        score_block = driver.find_element(By.CLASS_NAME, "cb-min-lv")
-        score_text = score_block.text
-        driver.quit()
-        return jsonify({"live_score": score_text})
+        results = search(query, num_results=5)
+        for link in results:
+            if "cricbuzz.com/profiles/" in link:
+                profile_link = link
+                print(f"Found profile: {profile_link}")
+                break
+                
+        if not profile_link:
+            return {"error": "No player profile found"}
     except Exception as e:
-        driver.quit()
-        return jsonify({"error": str(e)}), 500
+        return {"error": f"Search failed: {str(e)}"}
+    
+    # Get player profile page
+    c = requests.get(profile_link).text
+    cric = BeautifulSoup(c, "lxml")
+    profile = cric.find("div", id="playerProfile")
+    pc = profile.find("div", class_="cb-col cb-col-100 cb-bg-white")
+    
+    # Name, country and image
+    name = pc.find("h1", class_="cb-font-40").text
+    country = pc.find("h3", class_="cb-font-18 text-gray").text
+    image_url = None
+    images = pc.findAll('img')
+    for image in images:
+        image_url = image['src']
+        break  # Just get the first image
 
-# ------------------------------
-# TODAY'S UPCOMING MATCHES
-# ------------------------------
-@app.route('/today-matches', methods=['GET'])
-def today_matches():
-    url = "https://www.cricbuzz.com/cricket-match/live-scores"
-    driver = create_driver()
-    driver.get(url)
+    # Personal information and rankings
+    personal = cric.find_all("div", class_="cb-col cb-col-60 cb-lst-itm-sm")
+    role = personal[2].text.strip()
+    
+    icc = cric.find_all("div", class_="cb-col cb-col-25 cb-plyr-rank text-right")
+    # Batting rankings
+    tb = icc[0].text.strip()   # Test batting
+    ob = icc[1].text.strip()   # ODI batting
+    twb = icc[2].text.strip()  # T20 batting
+    
+    # Bowling rankings
+    tbw = icc[3].text.strip()  # Test bowling
+    obw = icc[4].text.strip()  # ODI bowling
+    twbw = icc[5].text.strip() # T20 bowling
 
-    time.sleep(5)
+    # Summary of the stats
+    summary = cric.find_all("div", class_="cb-plyr-tbl")
+    batting = summary[0]
+    bowling = summary[1]
+
+    # Batting statistics
+    bat_rows = batting.find("tbody").find_all("tr")
+    batting_stats = {}
+    for row in bat_rows:
+        cols = row.find_all("td")
+        format_name = cols[0].text.strip().lower()  # e.g., "Test", "ODI", "T20"
+        batting_stats[format_name] = {
+            "matches": cols[1].text.strip(),
+            "runs": cols[3].text.strip(),
+            "highest_score": cols[5].text.strip(),
+            "average": cols[6].text.strip(),
+            "strike_rate": cols[7].text.strip(),
+            "hundreds": cols[12].text.strip(),
+            "fifties": cols[11].text.strip(),
+        }
+
+    # Bowling statistics
+    bowl_rows = bowling.find("tbody").find_all("tr")
+    bowling_stats = {}
+    for row in bowl_rows:
+        cols = row.find_all("td")
+        format_name = cols[0].text.strip().lower()  # e.g., "Test", "ODI", "T20"
+        bowling_stats[format_name] = {
+            "balls": cols[3].text.strip(),
+            "runs": cols[4].text.strip(),
+            "wickets": cols[5].text.strip(),
+            "best_bowling_innings": cols[9].text.strip(),
+            "economy": cols[7].text.strip(),
+            "five_wickets": cols[11].text.strip(),
+        }
+
+    # Create player stats dictionary
+    player_data = {
+        "name": name,
+        "country": country,
+        "image": image_url,
+        "role": role,
+        "rankings": {
+            "batting": {
+                "test": tb,
+                "odi": ob,
+                "t20": twb
+            },
+            "bowling": {
+                "test": tbw,
+                "odi": obw,
+                "t20": twbw
+            }
+        },
+        "batting_stats": batting_stats,
+        "bowling_stats": bowling_stats
+    }
+
+    return jsonify(player_data)
+
+
+@app.route('/schedule')
+def schedule():
+    link = f"https://www.cricbuzz.com/cricket-schedule/upcoming-series/international"
+    source = requests.get(link).text
+    page = BeautifulSoup(source, "lxml")
+
+    # Find all match containers
+    match_containers = page.find_all("div", class_="cb-col-100 cb-col")
 
     matches = []
-    try:
-        match_blocks = driver.find_elements(By.CLASS_NAME, "cb-mtch-lst")
 
-        for block in match_blocks:
-            try:
-                status = block.find_element(By.CLASS_NAME, "cb-text-complete").text
-                continue  # Skip completed matches
-            except:
-                pass  # Not completed
+    # Iterate through each match container
+    for container in match_containers:
+        # Extract match details
+        date = container.find("div", class_="cb-lv-grn-strip text-bold")
+        match_info = container.find("div", class_="cb-col-100 cb-col")
+        
+        if date and match_info:
+            match_date = date.text.strip()
+            match_details = match_info.text.strip()
+            matches.append(f"{match_date} - {match_details}")
+    
+    return jsonify(matches)
 
-            try:
-                title = block.find_element(By.CLASS_NAME, "cb-ltst-wgt-hdr").text
-                teams = block.find_element(By.CLASS_NAME, "cb-ovr-flo").text
-                time_info = block.find_element(By.CLASS_NAME, "cb-text-live").text if block.find_elements(By.CLASS_NAME, "cb-text-live") else "Upcoming"
-                matches.append({
-                    "title": title,
-                    "teams": teams,
-                    "status": time_info
-                })
-            except:
-                continue
 
-        driver.quit()
-        return jsonify({"today_matches": matches})
-    except Exception as e:
-        driver.quit()
-        return jsonify({"error": str(e)}), 500
+@app.route('/live')
+def live_matches():
+    link = f"https://www.cricbuzz.com/cricket-match/live-scores"
+    source = requests.get(link).text
+    page = BeautifulSoup(source, "lxml")
 
-# ------------------------------
-# Run Server
-# ------------------------------
-if __name__ == '__main__':
+    page = page.find("div",class_="cb-col cb-col-100 cb-bg-white")
+    matches = page.find_all("div",class_="cb-scr-wll-chvrn cb-lv-scrs-col")
+
+    live_matches = []
+
+    for i in range(len(matches)):
+        live_matches.append(matches[i].text.strip())
+    
+    
+    return jsonify(live_matches)
+
+
+if __name__ =="__main__":
     app.run(debug=True)
