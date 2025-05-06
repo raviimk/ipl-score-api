@@ -63,7 +63,7 @@ def today_ipl_schedule():
 
     # 👇 Ye debugging output hai jo terminal me dikhayega HTML
     print("🔍 DEBUG OUTPUT START")
-    print(soup.prettify()[:5000])  # Pehle 5000 characters print hoga
+    print(soup.prettify()) # Pehle 5000 characters print hoga
     print("🔍 DEBUG OUTPUT END")
 
     return jsonify({"message": "Debug mode on. Check terminal output."})
