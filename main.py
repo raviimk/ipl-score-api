@@ -1,7 +1,9 @@
 from flask import Flask, jsonify
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+import time
 
 app = Flask(__name__)
 
@@ -12,31 +14,36 @@ def index():
 @app.route("/today", methods=["GET"])
 def today_ipl_schedule():
     try:
-        url = "https://www.cricbuzz.com/"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"
-        }
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, "html.parser")
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
 
-        match_cards = soup.find_all("li", class_="cb-view-all-ga cb-match-card cb-bg-white")
+        driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+        driver.get("https://www.cricbuzz.com/")
+        time.sleep(5)  # wait for JS to load
 
+        match_cards = driver.find_elements(By.CSS_SELECTOR, "li.cb-view-all-ga.cb-match-card.cb-bg-white")
         today_matches = []
+
         for card in match_cards:
-            title_tag = card.find("a")
-            match_title = title_tag.get("title") if title_tag else "No title"
+            try:
+                time_elem = card.find_element(By.CSS_SELECTOR, "div.cb-ovr-flo.cb-mtch-crd-time.cb-font-12.cb-text-preview")
+                match_time = time_elem.text.strip()
 
-            match_link = title_tag["href"] if title_tag and title_tag.has_attr("href") else ""
+                if "Today" in match_time:
+                    title_elem = card.find_element(By.TAG_NAME, "a")
+                    title = title_elem.get_attribute("title")
+                    link = title_elem.get_attribute("href")
+                    today_matches.append({
+                        "match": title,
+                        "time": match_time,
+                        "link": link
+                    })
+            except:
+                continue
 
-            time_div = card.find("div", class_="cb-ovr-flo cb-mtch-crd-time cb-font-12 cb-text-preview ng-binding ng-scope")
-            match_time = time_div.get_text(strip=True) if time_div else ""
-
-            if "Today" in match_time:
-                today_matches.append({
-                    "match": match_title,
-                    "time": match_time,
-                    "link": f"https://www.cricbuzz.com{match_link}"
-                })
+        driver.quit()
 
         if today_matches:
             return jsonify({"matches": today_matches, "status": "success"})
@@ -45,7 +52,7 @@ def today_ipl_schedule():
 
     except Exception as e:
         return jsonify({"message": f"Error: {str(e)}", "status": "error"})
-
+        
 @app.route("/live")
 def live_matches():
     try:
