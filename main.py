@@ -1,95 +1,72 @@
 from flask import Flask, jsonify
-import lxml
 import requests
 from bs4 import BeautifulSoup
-import re
-from googlesearch import search
-from datetime import datetime
 
 app = Flask(__name__)
 
+# IPL teams short and full forms
+IPL_TEAMS_SHORT = ['CSK', 'MI', 'RCB', 'GT', 'RR', 'LSG', 'DC', 'PBKS', 'KKR', 'SRH']
+IPL_TEAMS_FULL = [
+    'Chennai Super Kings', 'Mumbai Indians', 'Royal Challengers Bangalore',
+    'Gujarat Titans', 'Rajasthan Royals', 'Lucknow Super Giants',
+    'Delhi Capitals', 'Punjab Kings', 'Kolkata Knight Riders', 'Sunrisers Hyderabad'
+]
+
 @app.route('/')
 def index():
-    return "Hey there! This is a Cricket API. Endpoints: /players/<player_name>, /schedule, /live, /today"
+    return "Welcome to IPL Score API. Endpoints: /today, /live"
 
-# ---------- PLAYER PROFILE ENDPOINT ----------
-@app.route('/players/<player_name>', methods=['GET'])
-def get_player(player_name):
-    # Same logic as before (unchanged)
-    return jsonify({"message": "Player endpoint working. Please implement full logic."})
-
-# ---------- MATCH SCHEDULE ENDPOINT ----------
-@app.route('/schedule')
-def schedule():
-    url = "https://www.cricbuzz.com/cricket-schedule/upcoming-series/international"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "lxml")
+@app.route('/today')
+def today_matches():
+    url = "https://www.cricbuzz.com/cricket-match/live-scores"
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, "lxml")
 
     matches = []
-    for container in soup.find_all("div", class_="cb-col-100 cb-col"):
-        date = container.find("div", class_="cb-lv-grn-strip text-bold")
-        match_info = container.find("div", class_="cb-col-100 cb-col")
-        if date and match_info:
-            matches.append(f"{date.text.strip()} - {match_info.text.strip()}")
-    
-    return jsonify(matches)
+    blocks = soup.find_all("div", class_="cb-col cb-col-100 cb-tms-itm")
 
-# ---------- LIVE IPL MATCHES ----------
+    for block in blocks:
+        match_text = block.text.strip()
+        found_teams = [team for team in IPL_TEAMS_FULL if team in match_text]
+        if len(found_teams) >= 2:
+            matches.append(match_text)
+
+    if matches:
+        return jsonify({
+            "status": "today",
+            "matches": matches
+        })
+    else:
+        return jsonify({
+            "message": "No IPL matches found today",
+            "status": "no_match"
+        })
+
 @app.route('/live')
 def live_matches():
     url = "https://www.cricbuzz.com/cricket-match/live-scores"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "lxml")
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, "lxml")
 
-    ipl_teams_short = ['CSK', 'MI', 'RCB', 'GT', 'RR', 'LSG', 'DC', 'PBKS', 'KKR', 'SRH']
-    match_blocks = soup.find_all("div", class_="cb-scr-wll-chvrn cb-lv-scrs-col")
+    matches = []
+    blocks = soup.find_all("div", class_="cb-mtch-lst cb-col cb-col-100 cb-lv-scrs-col")
 
-    live_ipl = []
+    for block in blocks:
+        match_text = block.text.strip()
+        found_teams = [team for team in IPL_TEAMS_SHORT if team in match_text]
+        if len(found_teams) >= 2:
+            matches.append(match_text)
 
-    for match in match_blocks:
-        text = match.text.strip()
-        if any(team in text for team in ipl_teams_short):
-            live_ipl.append(text)
-
-    if not live_ipl:
+    if matches:
         return jsonify({
-            "status": "no_live",
-            "message": "No IPL match is live currently.",
-            "tip": "Use /today to see upcoming matches."
+            "status": "live",
+            "matches": matches
+        })
+    else:
+        return jsonify({
+            "message": "No IPL match is live right now",
+            "status": "no_live"
         })
 
-    return jsonify({
-        "status": "live",
-        "matches": live_ipl
-    })
-
-# ---------- TODAY’S IPL MATCHES ----------
-@app.route('/today')
-def today_ipl_schedule():
-    url = "https://www.cricbuzz.com/cricket-match/live-scores"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "lxml")
-
-    today_matches = []
-    now = datetime.now().strftime("%Y-%m-%d")
-
-    match_cards = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")[0]
-    games = match_cards.find_all("div", class_="cb-mtch-lst cb-col cb-col-100 cb-lv-scrs-col")
-
-    for match in games:
-        match_title = match.find("a")
-        match_text = match.text.strip()
-        if match_title:
-            today_matches.append(match_text)
-
-    if not today_matches:
-        return jsonify({"status": "no_match", "message": "No IPL match found for today."})
-    
-    return jsonify({
-        "status": "today",
-        "matches": today_matches
-    })
-
-# ---------- RUN APP ----------
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
