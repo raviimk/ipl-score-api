@@ -63,33 +63,12 @@ def today_ipl_schedule():
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "lxml")
 
-    match_cards = soup.find_all("div", class_="cb-col cb-col-100 cb-ltst-wgt-hdr")
+    # Yeh naya debug code hai jo HTML content terminal pe print karega
+    print("🔍 DEBUG OUTPUT START")
+    print(soup.prettify()[:5000])  # Sirf pehle 5000 characters print hoga
+    print("🔍 DEBUG OUTPUT END")
 
-    ipl_teams_full = [
-        'Mumbai Indians', 'Chennai Super Kings', 'Royal Challengers Bangalore', 'Gujarat Titans',
-        'Rajasthan Royals', 'Lucknow Super Giants', 'Delhi Capitals', 'Punjab Kings',
-        'Kolkata Knight Riders', 'Sunrisers Hyderabad'
-    ]
-    today_matches = []
-
-    for card in match_cards:
-        blocks = card.find_all("div", class_="cb-mtch-lst cb-col cb-col-100")  # 👈 Yeh line fix hai
-        for block in blocks:
-            match_info = block.text.strip()
-            found_teams = [team for team in ipl_teams_full if team in match_info]
-            if len(found_teams) >= 2:
-                today_matches.append(match_info)
-
-    if today_matches:
-        return jsonify({
-            "status": "today",
-            "matches": today_matches
-        })
-    else:
-        return jsonify({
-            "message": "No IPL matches found today",
-            "status": "no_match"
-        })
+    return jsonify({"message": "Debug mode on. Check terminal output."})
 
 if __name__ == "__main__":
     app.run(debug=True)
