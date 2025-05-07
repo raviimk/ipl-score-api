@@ -3,8 +3,17 @@ import lxml
 import requests
 from bs4 import BeautifulSoup
 from googlesearch import search
+from live_ipl_details import get_ipl_live_match_details
 
 app = Flask(__name__)
+
+@app.route('/live')
+def live():
+    try:
+        data = get_ipl_live_match_details()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route('/')
 def index():
